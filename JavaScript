@@ -1,1 +1,322 @@
 
+const products = [
+  {
+    id: 1,
+    name: "Conjunto Fitness Essencial",
+    category: "feminino",
+    price: 149.90,
+    image: "https://images.unsplash.com/photo-1506629905607-d9b7c7b4a5f4?w=700"
+  },
+  {
+    id: 2,
+    name: "Top Fitness Performance",
+    category: "feminino",
+    price: 79.90,
+    image: "https://images.unsplash.com/photo-1546483875-ad9014c88eba?w=700"
+  },
+  {
+    id: 3,
+    name: "Legging Confort",
+    category: "feminino",
+    price: 119.90,
+    image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=700"
+  },
+  {
+    id: 4,
+    name: "Camiseta Esportiva",
+    category: "masculino",
+    price: 89.90,
+    image: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=700"
+  },
+  {
+    id: 5,
+    name: "Short Fitness",
+    category: "masculino",
+    price: 99.90,
+    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=700"
+  },
+  {
+    id: 6,
+    name: "Conjunto Training",
+    category: "feminino",
+    price: 169.90,
+    image: "https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=700"
+  },
+  {
+    id: 7,
+    name: "Regata Esportiva",
+    category: "masculino",
+    price: 69.90,
+    image: "https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?w=700"
+  },
+  {
+    id: 8,
+    name: "Legging Premium",
+    category: "feminino",
+    price: 139.90,
+    image: "https://images.unsplash.com/photo-1579758629938-03607ccdbaba?w=700"
+  }
+];
+
+let cart = [];
+let favorites = [];
+let currentFilter = "todos";
+let searchTerm = "";
+
+const productGrid = document.getElementById("product-grid");
+const cartDrawer = document.getElementById("cart-drawer");
+const overlay = document.getElementById("overlay");
+
+const money = value =>
+  value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("visible");
+
+  setTimeout(() => {
+    toast.classList.remove("visible");
+  }, 2200);
+}
+
+function renderProducts() {
+  let filtered = products.filter(product => {
+    const matchesCategory =
+      currentFilter === "todos" || product.category === currentFilter;
+
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFavorites =
+      !showOnlyFavorites || favorites.includes(product.id);
+
+    return matchesCategory && matchesSearch && matchesFavorites;
+  });
+
+  const sort = document.getElementById("sort-select").value;
+
+  if (sort === "price-asc") {
+    filtered.sort((a, b) => a.price - b.price);
+  } else if (sort === "price-desc") {
+    filtered.sort((a, b) => b.price - a.price);
+  } else if (sort === "name") {
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  productGrid.innerHTML = filtered.map(product => `
+    <article class="product-card">
+      <div class="product-image">
+        <img src="${product.image}" alt="${product.name}" loading="lazy">
+        <button
+          class="favorite-button ${favorites.includes(product.id) ? "active" : ""}"
+          data-favorite="${product.id}"
+          aria-label="Adicionar ${product.name} aos favoritos"
+        >${favorites.includes(product.id) ? "♥" : "♡"}</button>
+      </div>
+      <div class="product-info">
+        <span class="product-category">${product.category}</span>
+        <h3 class="product-name">${product.name}</h3>
+        <p class="product-price">${money(product.price)}</p>
+        <button class="add-button" data-add="${product.id}">
+          ADICIONAR AO CARRINHO
+        </button>
+      </div>
+    </article>
+  `).join("");
+
+  document.getElementById("empty-message").hidden = filtered.length > 0;
+}
+
+let showOnlyFavorites = false;
+
+function toggleFavorite(id) {
+  if (favorites.includes(id)) {
+    favorites = favorites.filter(item => item !== id);
+  } else {
+    favorites.push(id);
+  }
+
+  document.getElementById("favorites-count").textContent = favorites.length;
+  renderProducts();
+}
+
+function addToCart(id) {
+  const product = products.find(item => item.id === id);
+  if (!product) return;
+
+  const existing = cart.find(item => item.id === id);
+
+  if (existing) {
+    existing.quantity++;
+  } else {
+    cart.push({ ...product, quantity: 1 });
+  }
+
+  renderCart();
+  showToast("Produto adicionado ao carrinho!");
+}
+
+function changeQuantity(id, amount) {
+  const item = cart.find(product => product.id === id);
+  if (!item) return;
+
+  item.quantity += amount;
+
+  if (item.quantity <= 0) {
+    cart = cart.filter(product => product.id !== id);
+  }
+
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(item => item.id !== id);
+  renderCart();
+}
+
+function renderCart() {
+  const cartItems = document.getElementById("cart-items");
+
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
+  document.getElementById("cart-count").textContent = totalItems;
+  document.getElementById("cart-subtotal").textContent = money(subtotal);
+
+  if (cart.length === 0) {
+    cartItems.innerHTML = "<p>Seu carrinho está vazio.</p>";
+    return;
+  }
+
+  cartItems.innerHTML = cart.map(item => `
+    <div class="cart-item">
+      <img src="${item.image}" alt="${item.name}">
+      <div class="cart-item-info">
+        <h3>${item.name}</h3>
+        <p>${money(item.price)}</p>
+        <div class="quantity-controls">
+          <button data-minus="${item.id}" aria-label="Diminuir quantidade">−</button>
+          <span>${item.quantity}</span>
+          <button data-plus="${item.id}" aria-label="Aumentar quantidade">+</button>
+        </div>
+        <button class="remove-item" data-remove="${item.id}">Remover</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openCart() {
+  cartDrawer.classList.add("open");
+  overlay.classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
+function closeCart() {
+  cartDrawer.classList.remove("open");
+  overlay.classList.remove("visible");
+  document.body.style.overflow = "";
+}
+
+document.addEventListener("click", event => {
+  const addButton = event.target.closest("[data-add]");
+  const favoriteButton = event.target.closest("[data-favorite]");
+  const plusButton = event.target.closest("[data-plus]");
+  const minusButton = event.target.closest("[data-minus]");
+  const removeButton = event.target.closest("[data-remove]");
+
+  if (addButton) addToCart(Number(addButton.dataset.add));
+
+  if (favoriteButton) {
+    toggleFavorite(Number(favoriteButton.dataset.favorite));
+  }
+
+  if (plusButton) changeQuantity(Number(plusButton.dataset.plus), 1);
+
+  if (minusButton) changeQuantity(Number(minusButton.dataset.minus), -1);
+
+  if (removeButton) removeFromCart(Number(removeButton.dataset.remove));
+});
+
+document.querySelectorAll(".filter-button").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".filter-button").forEach(item =>
+      item.classList.remove("active")
+    );
+
+    button.classList.add("active");
+    currentFilter = button.dataset.filter;
+    showOnlyFavorites = false;
+    renderProducts();
+  });
+});
+
+document.getElementById("sort-select").addEventListener("change", renderProducts);
+
+document.getElementById("search-toggle").addEventListener("click", () => {
+  document.getElementById("search-bar").classList.toggle("visible");
+  document.getElementById("search-input").focus();
+});
+
+document.getElementById("search-input").addEventListener("input", event => {
+  searchTerm = event.target.value;
+  renderProducts();
+});
+
+document.getElementById("favorites-toggle").addEventListener("click", () => {
+  showOnlyFavorites = !showOnlyFavorites;
+  currentFilter = "todos";
+
+  document.querySelectorAll(".filter-button").forEach(button => {
+    button.classList.toggle("active", button.dataset.filter === "todos");
+  });
+
+  renderProducts();
+  document.getElementById("colecao").scrollIntoView({ behavior: "smooth" });
+});
+
+document.getElementById("cart-toggle").addEventListener("click", openCart);
+document.getElementById("cart-close").addEventListener("click", closeCart);
+overlay.addEventListener("click", closeCart);
+
+document.getElementById("menu-toggle").addEventListener("click", () => {
+  document.getElementById("navigation").classList.toggle("open");
+});
+
+document.querySelectorAll(".navigation a").forEach(link => {
+  link.addEventListener("click", () => {
+    document.getElementById("navigation").classList.remove("open");
+  });
+});
+
+document.getElementById("checkout-button").addEventListener("click", () => {
+  if (cart.length === 0) {
+    showToast("Adicione produtos antes de continuar.");
+    return;
+  }
+
+  showToast("O atendimento para finalizar o pedido ainda precisa ser configurado.");
+});
+
+document.getElementById("newsletter-form").addEventListener("submit", event => {
+  event.preventDefault();
+
+  const email = document.getElementById("newsletter-email").value;
+
+  if (!email) return;
+
+  document.getElementById("newsletter-message").textContent =
+    "Cadastro demonstrativo realizado!";
+
+  event.target.reset();
+});
+
+renderProducts();
+renderCart();
+
